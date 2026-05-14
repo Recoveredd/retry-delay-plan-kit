@@ -2,7 +2,7 @@
 
 ## Verdict
 
-GO local uniquement. Brouillon propre à relire humainement avant toute décision de publication.
+GO local confirmé, mais pas à promouvoir tant que la file npm reste chargée. Le brouillon a passé deux lectures utilisateur avancé et une passe robustesse; l'angle "plan inspectable plutôt qu'exécuteur de retry" est assez clair pour une promotion ultérieure.
 
 ## Candidat abandonné
 
@@ -76,30 +76,45 @@ Types exportés:
 - Les stratégies avancées comme decorrelated jitter ou budgets par deadline ne sont pas incluses.
 - Le package ne fournit pas d'exécuteur de retry: c'est volontaire, mais le README doit rester clair.
 - Le champ `engines.node >=20` concerne le packaging et les tests; le coeur reste browser-friendly.
+- Le brouillon protège maintenant les entrées `attempts` non fiables avec `maxAttempts`; conserver ce garde-fou si la lib est promue.
+
+## Passes utilisateur avancé
+
+### Passe 1: configuration issue d'une UI ou d'un fichier YAML
+
+Scénario: un outil interne affiche à l'avance le planning de retry d'un import ou d'un appel API. Le plan structuré est utile car il expose chaque délai, le total et les diagnostics sans lancer de timer. Point corrigé pendant la passe: ajout de `maxAttempts` pour éviter qu'une config utilisateur énorme ne génère un tableau dangereux.
+
+### Passe 2: tests d'un client HTTP avec `Retry-After`
+
+Scénario: un client veut fusionner une stratégie locale et un header HTTP `Retry-After`. `parseRetryAfterDelay` couvre les deux formats standard utiles, delta-seconds et HTTP-date, et renvoie `undefined` pour les valeurs invalides. La séparation entre parsing de header et génération de plan reste simple à comprendre.
+
+## Passe robustesse
+
+- `attempts` invalide ou non fini: diagnostic `invalid_attempts`, fallback conservateur.
+- `attempts` trop grand: cap via `maxAttempts` et diagnostic `attempts_exceeded_max`.
+- `maxAttempts` invalide: diagnostic `invalid_max_attempts`, fallback à `1_000`.
+- `baseDelayMs`, `factor`, `maxDelayMs` invalides: diagnostics stables et fallback.
+- Jitter déterministe par seed, donc testable et reproductible.
 
 ## Ce qui manque avant publication
 
-- Relecture humaine du positionnement face à `retry`, `exponential-backoff` et `backo2`.
+- Relecture humaine finale du positionnement face à `retry`, `exponential-backoff` et `backo2`.
 - Décision sur l'ajout éventuel de `decorrelated` jitter.
 - Vérification npm fraîche des téléchargements et de la disponibilité du nom.
-- Audit de wording README avant publication.
+- Ajout des fichiers qualité complets si promotion: `CONTRIBUTING.md`, `SECURITY.md`, workflow CI, badges README et démo portfolio.
 
-## Etat du Git local du brouillon
+## État du Git local du brouillon
 
-Tentative effectuée depuis `/Users/guillaumepapinutti/Developer/ExperienceAlpha/draft-libs/retry-delay-plan-kit/` uniquement:
-
-- `git init && git branch -M main && git config user.name "Recoveredd" && git config user.email "recoveredd@users.noreply.github.com"`
-
-Résultat: échec sur `git init` avec `.git: Operation not permitted`. Aucun commit local n'a donc pu être créé. Aucun contournement n'a été tenté et aucune commande Git n'a été lancée dans le workspace parent.
+Le brouillon a maintenant son Git local dans `/Users/guillaumepapinutti/Developer/ExperienceAlpha/draft-libs/retry-delay-plan-kit/`.
 
 ## Validations
 
 - `npm install`: OK, avec 4 vulnérabilités modérées de dépendances de dev signalées par `npm audit`.
 - `npm run typecheck`: OK.
-- `npm test`: OK, 7 tests passés.
+- `npm test`: OK, 8 tests passés.
 - `npm run build`: OK.
-- `npm pack --dry-run --cache ./.npm-cache`: OK, tarball prévu `retry-delay-plan-kit-0.1.0.tgz`, 8 fichiers, environ 9.7 kB packed.
+- `env npm_config_cache=/private/tmp/retry-delay-plan-kit-npm-cache npm pack --dry-run`: OK, tarball prévu `retry-delay-plan-kit-0.1.0.tgz`, 8 fichiers, environ 9.9 kB packed.
 
 ## Verdict humain recommandé
 
-Relire le positionnement. Publier seulement si l'angle "plan inspectable plutôt qu'exécuteur de retry" paraît suffisamment net et utile.
+Garder comme candidat de promotion. Publier seulement quand la file npm est moins chargée, après ajout du gabarit complet des vraies libs et CI verte.
