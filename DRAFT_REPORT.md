@@ -90,11 +90,13 @@ Scénario: un client veut fusionner une stratégie locale et un header HTTP `Ret
 
 ## Passe robustesse
 
+- Options runtime non-objet: diagnostic `invalid_options`, fallback conservateur, pas de throw.
 - `attempts` invalide ou non fini: diagnostic `invalid_attempts`, fallback conservateur.
 - `attempts` trop grand: cap via `maxAttempts` et diagnostic `attempts_exceeded_max`.
 - `maxAttempts` invalide: diagnostic `invalid_max_attempts`, fallback à `1_000`.
 - `baseDelayMs`, `factor`, `maxDelayMs` invalides: diagnostics stables et fallback.
 - Jitter déterministe par seed, donc testable et reproductible.
+- `Retry-After` non-string ou date de référence invalide: `undefined`, pas de throw.
 
 ## Ce qui manque avant publication
 
@@ -114,6 +116,12 @@ Le brouillon a maintenant son Git local dans `/Users/guillaumepapinutti/Develope
 - `npm test`: OK, 8 tests passés.
 - `npm run build`: OK.
 - `env npm_config_cache=/private/tmp/retry-delay-plan-kit-npm-cache npm pack --dry-run`: OK, tarball prévu `retry-delay-plan-kit-0.1.0.tgz`, 8 fichiers, environ 9.9 kB packed.
+- Requalification promotion 2026-05-14: ajout `invalid_options`, durcissement `parseRetryAfterDelay`, README démo/qualité, `CONTRIBUTING.md`, `SECURITY.md`, CI GitHub.
+- `npm run typecheck`: OK.
+- `npm test`: OK, 10 tests.
+- `npm run build`: OK.
+- `npm pack --dry-run --cache /private/tmp/retry-delay-plan-kit-npm-cache`: OK, 10.7 kB packed.
+- Smoke import `dist`: OK, plan jitter déterministe, `Retry-After` delta-seconds et options invalides.
 
 ## Verdict humain recommandé
 

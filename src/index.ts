@@ -17,6 +17,7 @@ export type RetryDelayStep = {
 };
 
 export type RetryDelayIssueCode =
+  | "invalid_options"
   | "invalid_attempts"
   | "invalid_max_attempts"
   | "attempts_exceeded_max"
@@ -84,7 +85,11 @@ export function retryDelaySteps(options: RetryDelayOptions = {}): RetryDelayStep
   return createRetryDelayPlan(options).steps;
 }
 
-export function parseRetryAfterDelay(value: string, now: Date = new Date()): number | undefined {
+export function parseRetryAfterDelay(value: unknown, now: Date | number = new Date()): number | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
   const trimmed = value.trim();
   if (trimmed === "") {
     return undefined;
@@ -99,12 +104,25 @@ export function parseRetryAfterDelay(value: string, now: Date = new Date()): num
     return undefined;
   }
 
-  return Math.max(0, timestamp - now.getTime());
+  const nowMs = normalizeNowMs(now);
+  if (nowMs === undefined) {
+    return undefined;
+  }
+
+  return Math.max(0, timestamp - nowMs);
 }
 
-function normalizeOptions(options: RetryDelayOptions, issues: RetryDelayIssue[]): NormalizedOptions {
-  let attempts = normalizeInteger(options.attempts, DEFAULTS.attempts, 0);
-  const requestedAttempts = options.attempts ?? DEFAULTS.attempts;
+function normalizeOptions(options: unknown, issues: RetryDelayIssue[]): NormalizedOptions {
+  const source = isRecord(options) ? options : {};
+  if (!isRecord(options)) {
+    issues.push({
+      code: "invalid_options",
+      message: "options must be an object when provided."
+    });
+  }
+
+  let attempts = normalizeInteger(source.attempts, DEFAULTS.attempts, 0);
+  const requestedAttempts = source.attempts ?? DEFAULTS.attempts;
   if (attempts !== requestedAttempts) {
     issues.push({
       code: "invalid_attempts",
@@ -112,8 +130,8 @@ function normalizeOptions(options: RetryDelayOptions, issues: RetryDelayIssue[])
     });
   }
 
-  const maxAttempts = normalizeInteger(options.maxAttempts, DEFAULTS.maxAttempts, 0);
-  if (maxAttempts !== (options.maxAttempts ?? DEFAULTS.maxAttempts)) {
+  const maxAttempts = normalizeInteger(source.maxAttempts, DEFAULTS.maxAttempts, 0);
+  if (maxAttempts !== (source.maxAttempts ?? DEFAULTS.maxAttempts)) {
     issues.push({
       code: "invalid_max_attempts",
       message: "maxAttempts must be a finite integer greater than or equal to 0."
@@ -128,31 +146,31 @@ function normalizeOptions(options: RetryDelayOptions, issues: RetryDelayIssue[])
     });
   }
 
-  const baseDelayMs = normalizeNumber(options.baseDelayMs, DEFAULTS.baseDelayMs, 0);
-  if (baseDelayMs !== (options.baseDelayMs ?? DEFAULTS.baseDelayMs)) {
+  const baseDelayMs = normalizeNumber(source.baseDelayMs, DEFAULTS.baseDelayMs, 0);
+  if (baseDelayMs !== (source.baseDelayMs ?? DEFAULTS.baseDelayMs)) {
     issues.push({
       code: "invalid_base_delay",
       message: "baseDelayMs must be a finite number greater than or equal to 0."
     });
   }
 
-  const factor = normalizeNumber(options.factor, DEFAULTS.factor, 1);
-  if (factor !== (options.factor ?? DEFAULTS.factor)) {
+  const factor = normalizeNumber(source.factor, DEFAULTS.factor, 1);
+  if (factor !== (source.factor ?? DEFAULTS.factor)) {
     issues.push({
       code: "invalid_factor",
       message: "factor must be a finite number greater than or equal to 1."
     });
   }
 
-  const maxDelayMs = normalizeNumber(options.maxDelayMs, DEFAULTS.maxDelayMs, 0);
-  if (maxDelayMs !== (options.maxDelayMs ?? DEFAULTS.maxDelayMs)) {
+  const maxDelayMs = normalizeNumber(source.maxDelayMs, DEFAULTS.maxDelayMs, 0);
+  if (maxDelayMs !== (source.maxDelayMs ?? DEFAULTS.maxDelayMs)) {
     issues.push({
       code: "invalid_max_delay",
       message: "maxDelayMs must be a finite number greater than or equal to 0."
     });
   }
 
-  const jitter = options.jitter ?? DEFAULTS.jitter;
+  const jitter = source.jitter ?? DEFAULTS.jitter;
   const normalizedJitter: RetryDelayJitter =
     jitter === "none" || jitter === "full" || jitter === "equal" ? jitter : DEFAULTS.jitter;
 
@@ -170,19 +188,19 @@ function normalizeOptions(options: RetryDelayOptions, issues: RetryDelayIssue[])
     factor,
     maxDelayMs,
     jitter: normalizedJitter,
-    seed: String(options.seed ?? DEFAULTS.seed)
+    seed: String(source.seed ?? DEFAULTS.seed)
   };
 }
 
-function normalizeNumber(value: number | undefined, fallback: number, minimum: number): number {
+function normalizeNumber(value: unknown, fallback: number, minimum: number): number {
   if (value === undefined) {
     return fallback;
   }
 
-  return Number.isFinite(value) && value >= minimum ? value : fallback;
+  return typeof value === "number" && Number.isFinite(value) && value >= minimum ? value : fallback;
 }
 
-function normalizeInteger(value: number | undefined, fallback: number, minimum: number): number {
+function normalizeInteger(value: unknown, fallback: number, minimum: number): number {
   const normalized = normalizeNumber(value, fallback, minimum);
   return Math.floor(normalized);
 }
@@ -214,4 +232,17 @@ function createSeededRandom(seed: string): () => number {
     value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
     return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+function isRecord(value: unknown): value is Partial<Record<keyof RetryDelayOptions, unknown>> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeNowMs(now: Date | number): number | undefined {
+  if (now instanceof Date) {
+    const time = now.getTime();
+    return Number.isFinite(time) ? time : undefined;
+  }
+
+  return Number.isFinite(now) ? now : undefined;
 }

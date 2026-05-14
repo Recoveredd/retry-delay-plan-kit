@@ -1,8 +1,24 @@
 # retry-delay-plan-kit
 
+[![License: MPL-2.0](https://img.shields.io/badge/license-MPL--2.0-blue.svg)](LICENSE)
+[![CI](https://github.com/Recoveredd/retry-delay-plan-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/Recoveredd/retry-delay-plan-kit/actions/workflows/ci.yml)
+
 Small TypeScript utilities for building deterministic retry delay plans.
 
 Use it when you need to show, test, log, or cap the retry schedule before running an operation. The package does not execute retries, touch timers, make network requests, or require Node APIs.
+
+## Demo
+
+Try the browser preview: [packages.wasta-wocket.fr/retry-delay-plan-kit](https://packages.wasta-wocket.fr/retry-delay-plan-kit/).
+
+## Package quality
+
+- TypeScript types are generated from the source.
+- ESM-only package with no runtime dependencies.
+- Marked as side-effect free for bundlers.
+- CI runs `npm ci`, `typecheck`, `build`, and `test`.
+- Tested on Node.js 20 and 22 with GitHub Actions.
+- Browser-friendly implementation with no Node-only APIs.
 
 ## Install
 
@@ -50,6 +66,7 @@ type RetryDelayPlan = {
 
 Invalid numeric options are clamped to conservative defaults and reported in `issues`.
 If `attempts` comes from untrusted configuration, `maxAttempts` caps the generated plan and reports an `attempts_exceeded_max` issue.
+Non-object runtime options are reported as `invalid_options` instead of throwing.
 
 ### `retryDelaySteps(options)`
 
@@ -58,6 +75,7 @@ Returns only the delay steps.
 ### `parseRetryAfterDelay(value, now?)`
 
 Parses an HTTP `Retry-After` value as either delta seconds or an HTTP date and returns a delay in milliseconds.
+Invalid or non-string values return `undefined`.
 
 ## Options
 
@@ -75,4 +93,4 @@ The core uses only standard JavaScript: numbers, strings, arrays, and `Date.pars
 
 ## CLI
 
-No CLI is included in this draft. The useful value is an embeddable, deterministic plan that callers can render, log, or feed into their own retry loop.
+No CLI is included. The useful value is an embeddable, deterministic plan that callers can render, log, or feed into their own retry loop.

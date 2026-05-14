@@ -48,6 +48,16 @@ describe("createRetryDelayPlan", () => {
     ]);
   });
 
+  it("does not throw when runtime callers pass a non-object options value", () => {
+    const plan = createRetryDelayPlan(null as unknown as Parameters<typeof createRetryDelayPlan>[0]);
+
+    expect(plan.steps).toHaveLength(3);
+    expect(plan.issues).toContainEqual({
+      code: "invalid_options",
+      message: "options must be an object when provided."
+    });
+  });
+
   it("caps untrusted attempt counts", () => {
     const plan = createRetryDelayPlan({
       attempts: 10_000,
@@ -88,5 +98,11 @@ describe("parseRetryAfterDelay", () => {
   it("rejects empty and invalid values", () => {
     expect(parseRetryAfterDelay("")).toBeUndefined();
     expect(parseRetryAfterDelay("later")).toBeUndefined();
+  });
+
+  it("rejects non-string values and invalid now timestamps without throwing", () => {
+    expect(parseRetryAfterDelay(null)).toBeUndefined();
+    expect(parseRetryAfterDelay("Tue, 12 May 2026 12:00:05 GMT", new Date("invalid"))).toBeUndefined();
+    expect(parseRetryAfterDelay("Tue, 12 May 2026 12:00:05 GMT", Number.NaN)).toBeUndefined();
   });
 });
